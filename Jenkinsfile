@@ -80,7 +80,7 @@ pipeline {
         }
         failure{
             mail to:"${params.email}",subject:"the pipeline failed"，
-            body:""
+            body:"${env.name}\n pipeline '${JOB_NAME}'(${BUILD_NUMBER}) (${allureReportUrl})"
         }
         success{
             script{
