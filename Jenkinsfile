@@ -73,7 +73,7 @@ pipeline {
             }
         }
         failure{
-            mail to:team@example.com,subject:'The pipeline failed :('
+            mail to:team@example.com,subject:"the pipeline failed"
         }
         success{
             script{
