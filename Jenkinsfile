@@ -5,6 +5,7 @@ pipeline {
         string(name:'mainRepo',defaultValue:'https://github.com/henshing/Starry.git',description:'main repository')
         string(name:'relatedRepo1',defaultValue:'https://github.com/henshing/driver_display.git',description:'related repository')
         string(name:'relatedRepo2',defaultValue:'https://github.com/henshing/axtrap.git',description:'related repository')
+        string(name:'email',defaultValue:'1445323887@qq.com',description:'Email address to send the report to')
     }
 
     environment {
@@ -16,19 +17,19 @@ pipeline {
     stages {
         stage('MainRepoTest'){
             steps{
-                sh"git clone ${parameters.mainRepo};cd${parameters.mainRepo};pytest"
+                sh"git clone ${params.mainRepo};cd${params.mainRepo};pytest"
             }
         }
         
         stage('RelatedRepoTest'){
             steps{
-                sh"git clone ${parameters.relatedRepo1};cd${parameters.relatedRepo1};pytest"
+                sh"git clone ${params.relatedRepo1};cd${params.relatedRepo1};pytest"
             }
         }
 
         stage('RelatedRepoTest'){
             steps{
-                sh"git clone ${parameters.relatedRepo2};cd${parameters.relatedRepo2};pytest"
+                sh"git clone ${params.relatedRepo2};cd${params.relatedRepo2};pytest"
             }
         }
         
@@ -37,6 +38,15 @@ pipeline {
                             sh 'echo $PATH'
                             sh 'printenv'
                             sh 'cp -r /home/jenkins_home/pytest $WORKSPACE'
+                    }
+                }
+
+        stage('编译测试'){
+                    steps {
+                            echo "--------------------------------------------test start------------------------------------------------"
+                            sh ' export pywork=$WORKSPACE && cd $pywork/pytest  && python3 -m pytest -sv --alluredir report/result testcase/test_arceos.py --clean-alluredir'
+                            echo "--------------------------------------------test end  ------------------------------------------------"
+                        
                     }
                 }
         
@@ -67,17 +77,13 @@ pipeline {
     post {
         always {
             junit'**/target/*.xml'
-            script {
-                
-                allure includeProperties: false, jdk: '', reportBuildPolicy: 'ALWAYS', results: [[path: 'target/allure-results']]
-            }
         }
         failure{
-            mail to:team@example.com,subject:"the pipeline failed"
+            mail to:"${params.email}",subject:"the pipeline failed"
         }
         success{
             script{
-                mail to:"${parameters.email}",
+                mail to:"${params.email}",
                 subject:"PipeLine'${JOB_NAME}'(${BUILD_NUMBER})result",
                 body:"${env.name}\n pipeline '${JOB_NAME}'(${BUILD_NUMBER}) (${allureReportUrl})"
             }
