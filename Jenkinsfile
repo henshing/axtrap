@@ -80,7 +80,7 @@ pipeline {
         }
         failure{
             mail to:"${params.email}",subject:"the pipeline failed"，
-            body:"sorry"
+            body:""
         }
         success{
             script{
