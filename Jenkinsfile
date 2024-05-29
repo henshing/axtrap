@@ -21,13 +21,13 @@ pipeline {
             }
         }
         
-        stage('RelatedRepoTest'){
+        stage('RelatedRepoTest1'){
             steps{
                 sh"git clone ${params.relatedRepo1};cd${params.relatedRepo1};pytest"
             }
         }
 
-        stage('RelatedRepoTest'){
+        stage('RelatedRepoTest2'){
             steps{
                 sh"git clone ${params.relatedRepo2};cd${params.relatedRepo2};pytest"
             }
@@ -79,7 +79,8 @@ pipeline {
             junit'**/target/*.xml'
         }
         failure{
-            mail to:"${params.email}",subject:"the pipeline failed"
+            mail to:"${params.email}",subject:"the pipeline failed"，
+            body:"sorry"
         }
         success{
             script{
