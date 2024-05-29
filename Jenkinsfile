@@ -12,6 +12,12 @@ pipeline {
         JENKINS_URL = "http://49.51.192.19:9095"
         JOB_PATH = "job/github_test_sl"
         REPORT_PATH = "allure"
+        //根据内置变量currentBuild获取构建号
+        def buildNumber = currentBuild.number
+       // 构建 Allure 报告地址
+       def allureReportUrl = "${JENKINS_URL}/${JOB_PATH}/${buildNumber}/${REPORT_PATH}"
+       // 输出 Allure 报告地址
+       echo "Allure Report URL: ${allureReportUrl}"
     }
     
     stages {
@@ -49,20 +55,6 @@ pipeline {
                         
                     }
                 }
-        
-        stage('Report') {
-            steps {
-                script {
-                    //根据内置变量currentBuild获取构建号
-                    def buildNumber = currentBuild.number
-                    // 构建 Allure 报告地址
-                    def allureReportUrl = "${JENKINS_URL}/${JOB_PATH}/${buildNumber}/${REPORT_PATH}"
-                    
-                    // 输出 Allure 报告地址
-                    echo "Allure Report URL: ${allureReportUrl}"
-                }
-            }
-        }
 
         stage('结果展示'){
                     steps{
@@ -79,15 +71,20 @@ pipeline {
             junit'**/target/*.xml'
         }
         failure{
-            mail to:"${params.email}",subject:"the pipeline failed"，
-            body:"${env.name}\n pipeline '${JOB_NAME}'(${BUILD_NUMBER}) (${allureReportUrl})"
+            emailext(
+                to:"${params.email}",
+                subject:"the pipeline failed"，
+                body:""
+                failed
+            )
         }
         success{
-            script{
-                mail to:"${params.email}",
-                subject:"PipeLine'${JOB_NAME}'(${BUILD_NUMBER})result",
-                body:"${env.name}\n pipeline '${JOB_NAME}'(${BUILD_NUMBER}) (${allureReportUrl})"
-            }
+             emailext(
+                to:"${params.email}",
+                subject:"the pipeline succeed"，
+                body:""
+                succeed
+            )
         }
     }
 }
