@@ -27,24 +27,6 @@ pipeline {
                 }
             }
         }
-
-        stage('MainRepoTest'){
-            steps{
-                sh "git clone ${params.mainRepo}; cd ${params.mainRepo}; pytest"
-            }
-        }
-        
-        stage('RelatedRepoTest1'){
-            steps{
-                sh "git clone ${params.relatedRepo1}; cd ${params.relatedRepo1}; pytest"
-            }
-        }
-
-        stage('RelatedRepoTest2'){
-            steps{
-                sh "git clone ${params.relatedRepo2}; cd ${params.relatedRepo2}; pytest"
-            }
-        }
         
         stage('pytest嵌入'){
             steps{
