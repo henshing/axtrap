@@ -1,97 +1,81 @@
 pipeline {
     agent any
 
-    parameters{
-        string(name:'mainRepo',defaultValue:'https://github.com/henshing/Starry.git',description:'main repository')
-        string(name:'relatedRepo1',defaultValue:'https://github.com/henshing/driver_display.git',description:'related repository')
-        string(name:'relatedRepo2',defaultValue:'https://github.com/henshing/axtrap.git',description:'related repository')
-        string(name:'email',defaultValue:'1445323887@qq.com',description:'Email address to send the report to')
-    }
-
     environment {
+        name = "ComponentStarry"
+        mainRepoName = "ComponentStarry"
+        // repoName = "ComponentStarry"
         JENKINS_URL = "http://49.51.192.19:9095"
-        JOB_PATH = "job/github_test_sl"
+        JOB_PATH = "job/github_test_yk"
         REPORT_PATH = "allure"
+        GITHUB_URL_PREFIX = "https://github.com/kraigyang/"
+        GITHUB_URL_SUFFIX = ".git"
+        //根据内置变量currentBuild获取构建号
+        buildNumber = "${currentBuild.number}"
+        // 构建 Allure 报告地址
+        allureReportUrl = "${JENKINS_URL}/${JOB_PATH}/${buildNumber}/${REPORT_PATH}"
     }
     
     stages {
-        stage('Setup Environment') {
+        stage("多仓CI") {
             steps {
                 script {
-                    // 获取当前构建号
-                    def buildNumber = currentBuild.number
-                    // 构建 Allure 报告地址
-                    env.ALLURE_REPORT_URL = "${env.JENKINS_URL}/${env.JOB_PATH}/${buildNumber}/${env.REPORT_PATH}"
-                    // 输出 Allure 报告地址
-                    echo "Allure Report URL: ${env.ALLURE_REPORT_URL}"
+                    parallel repoJobs()
                 }
             }
         }
-        
-        stage('pytest嵌入'){
-            steps{
-                sh 'echo $PATH'
+    }
+}
+
+def repos() {
+  // return ["ComponentStarry", "driver_display",  "axtrap"]
+  return ["driver_display",  "axtrap"]
+}
+
+def repoJobs() {
+  jobs = [:]
+  repos().each { repo ->
+    jobs[repo] = { 
+        stage(repo) {
+           echo "Step for $repo"
+        }
+        stage(repo + "代码检出"){
+           echo "$repo 代码检出"
+           sh "rm -rf  $repo; git clone $GITHUB_URL_PREFIX$repo$GITHUB_URL_SUFFIX; echo `pwd`;"
+        }
+        stage(repo + "自动化嵌入"){
+            echo "$repo pytest嵌入"
+            // sh 'echo $PATH'
+            // sh 'printenv'
+            sh "cp -r /home/jenkins_home/pytest $WORKSPACE/$repo"
+        }
+        stage(repo + "编译测试"){
+            withEnv(["repoName=$repo"]) { // it can override any env variable
+                echo "repoName = ${repoName}"
+                echo "$repo 编译测试"
                 sh 'printenv'
-                sh 'cp -r /home/jenkins_home/pytest $WORKSPACE'
+                echo "--------------------------------------------$repo test start------------------------------------------------"
+                sh 'export pywork=$WORKSPACE/${repoName} && cd $pywork/pytest && python3 -m pytest -sv --alluredir report/result testcase/test_arceos.py --clean-alluredir'
+                echo "--------------------------------------------$repo test end  ------------------------------------------------"
             }
         }
-
-        stage('编译测试'){
-            steps {
-                echo "--------------------------------------------test start------------------------------------------------"
-                sh ' export pywork=$WORKSPACE && cd $pywork/pytest && python3 -m pytest -sv --alluredir report/result testcase/test_arceos.py --clean-alluredir'
-                echo "--------------------------------------------test end  ------------------------------------------------"
-            }
+        stage(repo + "报告生成") {
+            echo "$repo 报告生成"
+            // 输出 Allure 报告地址
+            echo "$repo Allure Report URL: ${allureReportUrl}"
         }
-
-        stage('结果展示'){
-            steps{
-                echo "-------------------------allure report generating start---------------------------------------------------"
-                sh 'export pywork=$WORKSPACE && cd $pywork/pytest && allure generate ./report/result -o ./report/html --clean'
-                allure includeProperties: false, jdk: 'jdk21', report: 'pytest/report/html', results: [[path: 'pytest/report/result']]
-                echo "-------------------------allure report generating end ----------------------------------------------------"
+        stage(repo + "结果展示"){
+            withEnv(["repoName=$repo"]) { // it can override any env variable
+                echo "repoName = ${repoName}"
+                echo "$repo 结果展示"
+                sh 'printenv'
+                echo "-------------------------$repo allure report generating start---------------------------------------------------"
+                sh 'export pywork=$WORKSPACE/${repoName} && cd $pywork/pytest && allure generate ./report/result -o ./report/html --clean'
+                allure includeProperties: false, jdk: 'jdk17', report: "$repo/pytest/report/html", results: [[path: "$repo/pytest/report/result"]]
+                echo "-------------------------$repo allure report generating end ----------------------------------------------------"
             }
         }
     }
-
-    post {
-        always {
-            junit '**/target/*.xml'
-        }
-        failure {
-            emailext(
-                to: "${params.email}",
-                subject: "The pipeline failed",
-                body: """
-                你好，
-
-                流水线 '${JOB_NAME}' 的构建失败了。构建号：${BUILD_NUMBER}。
-
-                请查看以下日志以了解详情。
-
-                谢谢，
-                Jenkins
-                """
-            )
-        }
-        success {
-            emailext(
-                to: "${params.email}",
-                subject: "The pipeline succeeded",
-                body: """
-                你好，
-
-                流水线 '${JOB_NAME}' 的构建已成功完成。构建号：${BUILD_NUMBER}。
-
-                请查看以下报告：
-                ${env.ALLURE_REPORT_URL}
-
-                环境名称：${env.name}
-
-                谢谢，
-                Jenkins
-                """
-            )
-        }
-    }
+  }
+  return jobs
 }
